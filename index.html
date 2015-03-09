@@ -1,0 +1,77 @@
+<html manifest="cache.manifest">
+  <head>
+   <title>lightproj</title>
+   <meta name="viewport" content="initial-scale=1.0,user-scalable=no" />
+    <style>
+      body, html {
+        font-family: mono, monospace;
+        background: black;
+        overflow: hide;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      a {
+        color: lightgreen;
+      }
+      #page {
+        display: table;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #center {
+        display: table-cell;
+        text-align: center;
+        vertical-align: middle;
+      }
+      #display {
+      }
+      #hud {
+        position: absolute;
+        color: #fff;
+        background: rgba(127, 127, 127, 0.5);
+        padding: 1em;
+        left: 0;
+        bottom: 0;
+        top: 0;
+        overflow: auto;
+      }
+      .help {
+        color: ff7;
+        background: #654;
+      }
+      .shape {
+        padding: 0.25em;
+        background: rgba(127, 127, 127, 0.5);
+        margin-bottom: 0.25em;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+
+    <script type="text/javascript" src="lightproj.js"></script>
+
+  </head>
+  <body>
+    <div id="page"><div id="center">
+      <canvas id="display"></canvas>
+    </div></div>
+    <div id="hud">
+      lightproj
+      <div class="help">
+        space: toggle UI
+      </div>
+      <hr>
+      ambient:<input type="color" size=8 id="ambient" value="#000000">
+      <hr>
+      shapes:
+      <div id="shapes">
+      </div>
+      <a href="javascript:addshape()">[ add shape ]</a>
+    </div>
+  </body>
+</html>

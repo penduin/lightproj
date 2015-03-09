@@ -1,0 +1,12 @@
+set up arbitrary lighting using a projector or other large, bright display
+
+http://penduin.github.io/lightproj
+
+working:
+- ambient color
+- basic additive light shape building/editing
+
+todo:
+- different aspect ratios
+- animation
+- emitter logic
