@@ -239,7 +239,7 @@ function resize() {
 	LIGHT.canvas.height = 0;
 
 	var parent = LIGHT.canvas.parentElement;
-	var ratio = 16/9;
+	var ratio = parent.clientWidth / parent.clientHeight; //16/9;
 	var toowide = (parent.clientWidth / parent.clientHeight) > ratio;
 
 	if(toowide) {
