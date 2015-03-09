@@ -5,8 +5,9 @@ http://penduin.github.io/lightproj
 working:
 - ambient color
 - basic additive light shape building/editing
+- any aspect ratio
 
 todo:
-- different aspect ratios
 - animation
 - emitter logic
+- color fading / cycling
