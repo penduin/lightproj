@@ -51,6 +51,9 @@ function render() {
 	LIGHT.ctx.fillStyle = LIGHT.ambient;
 	LIGHT.ctx.fillRect(0, 0, LIGHT.canvas.width, LIGHT.canvas.height);
 	LIGHT.shapes.every(function(shape, idx) {
+		if(!shape.active) {
+			return true;
+		}
 		LIGHT.ctx.fillStyle = shape.color;
 		if(shape.type === "circle") {
 			LIGHT.ctx.beginPath();
@@ -94,7 +97,9 @@ function addshape() {
 		w: 0.2,
 		h: 0.2,
 		r: 0.1,
-		color: "#ffffff"
+		color: "#ffffff",
+		edit: true,
+		active: true
 	});
 	renderHUD();
 }
@@ -108,7 +113,44 @@ function renderHUD() {
 		var elm = document.createElement("div");
 		elm.className = "shape shape" + idx;
 		outer.appendChild(elm);
-		elm.appendChild(document.createTextNode("shape:"));
+		var anc = document.createElement("a");
+		anc.href = "#";
+		if(shape.edit) {
+			anc.title = "collapse section";
+			anc.appendChild(document.createTextNode("[-]"));
+		} else {
+			anc.title = "expand section";
+			anc.appendChild(document.createTextNode("[+]"));
+		}
+		anc.addEventListener("click", function(e) {
+			e.preventDefault();
+			LIGHT.shapes[idx].edit = !LIGHT.shapes[idx].edit;
+			renderHUD();
+		});
+		elm.appendChild(anc);
+		var inp = document.createElement("input");
+		inp.type = "checkbox";
+		inp.checked = shape.active;
+		inp.title = "enable/disable this shape";
+		inp.addEventListener("change", function(e) {
+			LIGHT.shapes[idx].active = this.checked;
+			renderHUD();
+		});
+		elm.appendChild(inp);
+		var inp = document.createElement("input");
+		inp.title = "shape name";
+		inp.value = shape.name || ("shape" + idx);
+		inp.className = "name" + idx;
+		inp.size = 8;
+		inp.style.borderWidth = "2px";
+		inp.style.borderStyle = "solid";
+		inp.style.borderColor = LIGHT.shapes[idx].color;
+		inp.addEventListener("change", function(e) {
+			LIGHT.shapes[idx].name = this.value;
+			renderHUD();
+		});
+		elm.appendChild(inp);
+		//elm.appendChild(document.createTextNode("shape:"));
 		var sel = document.createElement("select");
 		var opt = document.createElement("option");
 		opt.appendChild(document.createTextNode("rectangle"));
@@ -126,8 +168,33 @@ function renderHUD() {
 		});
 		elm.appendChild(sel);
 		elm.appendChild(document.createTextNode(" "));
-		var anc = document.createElement("a");
+		anc = document.createElement("a");
 		anc.href = "#";
+		anc.title = "move up";
+		anc.appendChild(document.createTextNode("[^]"));
+		anc.addEventListener("click", function(e) {
+			e.preventDefault();
+			if(!idx) {
+				return;
+			}
+			LIGHT.shapes.splice(idx - 1, 0, LIGHT.shapes.splice(idx, 1)[0]);
+			renderHUD();
+		});
+		elm.appendChild(anc);
+		anc = document.createElement("a");
+		anc.href = "#";
+		anc.title = "move down";
+		anc.appendChild(document.createTextNode("[v]"));
+		anc.addEventListener("click", function(e) {
+			e.preventDefault();
+			LIGHT.shapes.splice(idx + 1, 0, LIGHT.shapes.splice(idx, 1)[0]);
+			renderHUD();
+		});
+		elm.appendChild(anc);
+		elm.appendChild(document.createTextNode(" "));
+		anc = document.createElement("a");
+		anc.href = "#";
+		anc.title = "remove this shape";
 		anc.appendChild(document.createTextNode("[X]"));
 		anc.addEventListener("click", function(e) {
 			e.preventDefault();
@@ -135,21 +202,25 @@ function renderHUD() {
 			renderHUD();
 		});
 		elm.appendChild(anc);
+
+		if(!LIGHT.shapes[idx].edit) {
+			return true;
+		}
 		elm.appendChild(document.createElement("br"));
+
 		elm.appendChild(document.createTextNode("color:"));
-		var inp = document.createElement("input");
+		inp = document.createElement("input");
 		inp.type = "color";
 		inp.value = shape.color || "#fff";
 		//inp.style.backgroundColor = inp.value;
 		inp.size = 8;
 		inp.addEventListener("change", function(e) {
 			LIGHT.shapes[idx].color = this.value;
+			renderHUD();
 			//this.style.backgroundColor = this.value;
 		});
 		elm.appendChild(inp);
-
-		elm.appendChild(document.createElement("br"));
-
+		elm.appendChild(document.createTextNode(" "));
 		anc = document.createElement("a");
 		anc.href = "#";
 		anc.appendChild(document.createTextNode("[draw...]"));
@@ -168,6 +239,7 @@ function renderHUD() {
 		anc.addEventListener("click", function(e) {
 			e.preventDefault();
 			LIGHT.moveMode = true;
+			LIGHT.canvas.style.cursor = "move";
 			LIGHT.activeIndex = idx;
 			LIGHT.drag.start.x = LIGHT.drag.start.y = 0;
 			LIGHT.drag.offset.x = LIGHT.shapes[idx].x * LIGHT.canvas.width;
@@ -195,7 +267,7 @@ function renderHUD() {
 		});
 		elm.appendChild(inp);
 
-		elm.appendChild(document.createElement("br"));
+		elm.appendChild(document.createTextNode(" / "));
 
 		if(shape.type === "circle") {
 			elm.appendChild(document.createTextNode("r:"));
@@ -265,8 +337,16 @@ function mousedown(e) {
 }
 function mousemove(e) {
 	var now = new Date();
-	if(now - LIGHT.lastMove < 16 ||
-	   (!LIGHT.drag.start.x && !LIGHT.drag.start.y)) {
+	if(now - LIGHT.lastMove < 16) {
+		return;
+	}
+	if(LIGHT.drawMode || LIGHT.moveMode) {
+		LIGHT.crosshairs = {
+			x: e.clientX - e.target.offsetLeft,
+			y: e.clientY - e.target.offsetTop
+		};
+	}
+	if(!LIGHT.drag.start.x && !LIGHT.drag.start.y) {
 		return;
 	}
 	e.preventDefault();
@@ -279,11 +359,6 @@ function mousemove(e) {
 	LIGHT.drag.now.y = e.clientY - e.target.offsetTop;
 
 	if(LIGHT.drawMode) {
-		LIGHT.crosshairs = {
-			x: e.clientX - e.target.offsetLeft,
-			y: e.clientY - e.target.offsetTop
-		};
-
 		var shape = LIGHT.shapes[LIGHT.activeIndex];
 		shape.w = (LIGHT.drag.now.x - LIGHT.drag.start.x) / LIGHT.canvas.width;
 		shape.h = (LIGHT.drag.now.y - LIGHT.drag.start.y) / LIGHT.canvas.height;
@@ -308,6 +383,7 @@ function mouseup(e) {
 	}
 	if(LIGHT.moveMode) {
 		LIGHT.moveMode = false;
+		LIGHT.canvas.style.cursor = null;
 		LIGHT.activeIndex = null;
 		document.getElementById("hud").classList.toggle("hidden", false);
 	}
