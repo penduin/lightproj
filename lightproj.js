@@ -40,9 +40,10 @@ console = console || {
 	log: function() {}
 };
 
-function render() {
-	if(LIGHT.run) {
-		requestAnimationFrame(render);
+function render(time) {
+	requestAnimationFrame(render);
+	if(!LIGHT.run) {
+		return;
 	}
 
 	LIGHT.canvas.width = LIGHT.canvas.width;
@@ -53,6 +54,33 @@ function render() {
 	LIGHT.shapes.every(function(shape, idx) {
 		if(!shape.active) {
 			return true;
+		}
+		if(shape.strobe) {
+			if(shape.strobeRandom) {
+				if(!shape._strobeOn || !shape._strobeOff) {
+					shape._strobeOn = (shape.strobeOn +
+									   ((Math.random() - 0.5) *
+										shape.strobeOn));
+					shape._strobeOff = (shape.strobeOff +
+										((Math.random() - 0.5) *
+										 shape.strobeOff));
+				}
+				shape._strobeStart = shape._strobeStart || time;
+				if(time > (shape._strobeStart +
+						   shape._strobeOn + shape._strobeOff)) {
+					shape._strobeStart = shape._strobeOn = shape._strobeOff = 0;
+					return true;
+				}
+				if((time - (shape.strobeOffset || 0)) %
+				   (shape._strobeOn + shape._strobeOff) > shape._strobeOn) {
+					return true;
+				}
+			} else {
+				if((time - (shape.strobeOffset || 0)) %
+				   (shape.strobeOn + shape.strobeOff) > shape.strobeOn) {
+					return true;
+				}
+			}
 		}
 		LIGHT.ctx.fillStyle = shape.color;
 		if(shape.type === "circle") {
@@ -99,7 +127,10 @@ function addshape() {
 		r: 0.1,
 		color: "#ffffff",
 		edit: true,
-		active: true
+		active: true,
+		strobe: false,
+		strobeOn: 100,
+		strobeOff: 100
 	});
 	renderHUD();
 }
@@ -295,6 +326,61 @@ function renderHUD() {
 			inp.addEventListener("change", function(e) {
 				LIGHT.shapes[idx].h = parseFloat(this.value);
 				LIGHT.shapes[idx].r = parseFloat(this.value) / 2;
+			});
+			elm.appendChild(inp);
+		}
+
+		elm.appendChild(document.createElement("br"));
+
+		inp = document.createElement("input");
+		inp.type = "checkbox";
+		inp.checked = shape.strobe;
+		inp.title = "shape strobe";
+		inp.addEventListener("change", function(e) {
+			LIGHT.shapes[idx].strobe = this.checked;
+			renderHUD();
+		});
+		elm.appendChild(inp);
+		elm.appendChild(document.createTextNode("strobe "));
+		if(shape.strobe) {
+			inp = document.createElement("input");
+			inp.type = "checkbox";
+			inp.checked = shape.strobeRandom;
+			inp.title = "randomize on/off values by 0.5x~1.5x";
+			inp.addEventListener("change", function(e) {
+				LIGHT.shapes[idx].strobeRandom = this.checked;
+				renderHUD();
+			});
+			elm.appendChild(inp);
+			elm.appendChild(document.createTextNode("randomize"));
+
+			elm.appendChild(document.createElement("br"));
+
+			elm.appendChild(document.createTextNode(" on:"));
+			inp = document.createElement("input");
+			inp.value = shape.strobeOn || 0;
+			inp.size = 3;
+			inp.title = "on for this many milliseconds";
+			inp.addEventListener("change", function(e) {
+				LIGHT.shapes[idx].strobeOn = parseInt(this.value);
+			});
+			elm.appendChild(inp);
+			elm.appendChild(document.createTextNode(" off:"));
+			inp = document.createElement("input");
+			inp.value = shape.strobeOff || 0;
+			inp.size = 3;
+			inp.title = "off for this many milliseconds";
+			inp.addEventListener("change", function(e) {
+				LIGHT.shapes[idx].strobeOff = parseInt(this.value);
+			});
+			elm.appendChild(inp);
+			elm.appendChild(document.createTextNode(" offset:"));
+			inp = document.createElement("input");
+			inp.value = shape.strobeOffset || 0;
+			inp.size = 3;
+			inp.title = "offset by this many milliseconds";
+			inp.addEventListener("change", function(e) {
+				LIGHT.shapes[idx].strobeOffset = parseInt(this.value);
 			});
 			elm.appendChild(inp);
 		}
