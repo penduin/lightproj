@@ -26,7 +26,65 @@ var LIGHT = {
 		x: 0,
 		y: 0
 	},
-	crosshairsBlink: 0
+	crosshairsBlink: 0,
+	userPresets: {},
+	presets: {
+		"cop car": {
+			"ambient": "#000000",
+			"shapes": [
+				{
+					"type":"rectangle",
+					"x":0.5232517482517482,"y":0.39850523168908825,
+					"w":0.2,"h":0.2,"r":0.1,
+					"color":"#ff0000",
+					"edit":false,"active":true,
+					"strobe":true,
+					"strobeOn":50,"strobeOff":350,"strobeRandom":false,
+				},{
+					"type":"rectangle",
+					"x":0.5227272727272727,"y":0.3931240657698057,
+					"w":0.20279720279720279,"h":0.20926756352765322,"r":0.40503532566672523,
+					"color":"#ff0000",
+					"edit":false,"active":true,
+					"strobe":true,
+					"strobeOn":50,"strobeOff":350,"strobeOffset":100
+				},{
+					"type":"rectangle",
+					"x":0.4,"y":0.4,
+					"w":0.2,"h":0.2,"r":0.1,
+					"color":"#0008ff",
+					"edit":false,"active":true,
+					"strobe":true,"strobeOn":50,"strobeOff":350,"strobeOffset":200
+				},{
+					"type":"rectangle",
+					"x":0.4,"y":0.4,
+					"w":0.2,"h":0.2,"r":0.1,
+					"color":"#0000ff",
+					"edit":false,"active":true,
+					"strobe":true,"strobeOn":50,"strobeOff":350,"strobeOffset":300
+				},{
+					"type":"rectangle",
+					"x":0.4361888111888112,"y":0.476831091180867,
+					"w":0.24562937062937062,"h":0.043348281016442454,"r":0.42226080385046,
+					"color":"#ffffff",
+					"edit":false,"active":true,
+					"strobe":true,"strobeOn":50,"strobeOff":100
+				}
+			]
+		},
+		"train": {
+			"ambient": "#000000",
+			"shapes": [
+				{
+					"type":"rectangle",
+					"x":1,"y":0.2,"w":0.1,"h":0.6,"r":1,
+					"color":"#ffffff","edit":true,"active":true,
+					"strobe":false,"strobeOn":100,"strobeOff":100,
+					"move":true,"moveDuration":800,"moveX":-1.1
+				}
+			]
+		}
+	}
 };
 var TO_RADIANS = Math.PI / 180;
 var requestAnimationFrame = (window.requestAnimationFrame ||
@@ -39,12 +97,20 @@ requestAnimationFrame = requestAnimationFrame || function(cb) {
 console = console || {
 	log: function() {}
 };
+function lerp(from, to, prog) {
+	return (1 - prog) * from + prog * to;
+};
 
 function render(time) {
 	requestAnimationFrame(render);
 	if(!LIGHT.run) {
 		return;
 	}
+	var x = 0;
+	var y = 0;
+	var w = 0;
+	var h = 0;
+	var r = 0;
 
 	LIGHT.canvas.width = LIGHT.canvas.width;
 	LIGHT.ctx.save();
@@ -82,21 +148,37 @@ function render(time) {
 				}
 			}
 		}
+		if(shape.move && shape.moveDuration) {
+			var prog = (time % shape.moveDuration) / shape.moveDuration;
+			if(shape.moveTwoWay) {
+				prog *= 2;
+				if(prog > 1) {
+					prog = 2 - prog;
+				}
+			}
+			x = lerp(shape.x, shape.x + (shape.moveX || 0), prog);
+			y = lerp(shape.y, shape.y + (shape.moveY || 0), prog);
+			w = lerp(shape.w, shape.w + (shape.moveW || 0), prog);
+			h = lerp(shape.h, shape.h + (shape.moveH || 0), prog);
+			r = lerp(shape.r, shape.r + (shape.moveR || 0), prog);
+		} else {
+			x = shape.x;
+			y = shape.y;
+			w = shape.w;
+			h = shape.h;
+			r = shape.r;
+		}
 		LIGHT.ctx.fillStyle = shape.color;
 		if(shape.type === "circle") {
 			LIGHT.ctx.beginPath();
-			LIGHT.ctx.arc(shape.x * LIGHT.canvas.width,
-						  shape.y * LIGHT.canvas.height,
-						  shape.r * LIGHT.canvas.height,
-						  0, Math.PI * 2, false);
+			LIGHT.ctx.arc(x * LIGHT.canvas.width, y * LIGHT.canvas.height,
+						  r * LIGHT.canvas.height, 0, Math.PI * 2, false);
 			LIGHT.ctx.closePath();
 			LIGHT.ctx.fill();
 			LIGHT.ctx.stroke();
 		} else {
-			LIGHT.ctx.fillRect(shape.x * LIGHT.canvas.width,
-							   shape.y * LIGHT.canvas.height,
-							   shape.w * LIGHT.canvas.width,
-							   shape.h * LIGHT.canvas.height);
+			LIGHT.ctx.fillRect(x * LIGHT.canvas.width, y * LIGHT.canvas.height,
+							   w * LIGHT.canvas.width, h * LIGHT.canvas.height);
 		}
 		return true;
 	});
@@ -117,6 +199,44 @@ function render(time) {
 	}
 }
 
+function loadpreset() {
+	var pre = document.getElementById("preset");
+	if(LIGHT.userPresets[pre.value]) {
+		LIGHT.ambient = LIGHT.userPresets[pre.value].ambient;
+		LIGHT.shapes = [].concat(LIGHT.userPresets[pre.value].shapes);
+	} else if(LIGHT.presets[pre.value]) {
+		LIGHT.ambient = LIGHT.presets[pre.value].ambient;
+		LIGHT.shapes = [].concat(LIGHT.presets[pre.value].shapes);
+	} else {
+		alert("failed to load");
+	}
+	pre.value = "";
+	renderHUD();
+}
+function removepreset() {
+	var which = prompt("preset name to delete?");
+	if(which && LIGHT.userPresets[which]) {
+		delete LIGHT.userPresets[which];
+	} else {
+		alert("not found.");
+	}
+	localStorage.setItem("userPresets", JSON.stringify(LIGHT.userPresets));
+	renderHUD();
+}
+function savepreset() {
+	var name = prompt("preset name?");
+	if(name) {
+		LIGHT.userPresets[name] = {
+			ambient: LIGHT.ambient,
+			shapes: LIGHT.shapes
+		}
+	} else {
+		alert("cancelled");
+	}
+	localStorage.setItem("userPresets", JSON.stringify(LIGHT.userPresets));
+	renderHUD();
+}
+
 function addshape() {
 	LIGHT.shapes.push({
 		type: "rectangle",
@@ -130,12 +250,34 @@ function addshape() {
 		active: true,
 		strobe: false,
 		strobeOn: 100,
-		strobeOff: 100
+		strobeOff: 100,
+		move: false,
+		moveDuration: 1000
 	});
 	renderHUD();
 }
 
 function renderHUD() {
+	var pre = document.getElementById("preset");
+	while(pre.lastChild.value) {
+		pre.removeChild(pre.lastChild);
+	}
+	var set = null;
+	Object.keys(LIGHT.presets).every(function(name) {
+		set = document.createElement("option");
+		set.value = name;
+		set.appendChild(document.createTextNode(name));
+		pre.appendChild(set);
+		return true;
+	});
+	Object.keys(LIGHT.userPresets).every(function(name) {
+		set = document.createElement("option");
+		set.value = name;
+		set.appendChild(document.createTextNode(name));
+		pre.appendChild(set);
+		return true;
+	});
+
 	var outer = document.getElementById("shapes");
 	while(outer.firstChild) {
 		outer.removeChild(outer.firstChild);
@@ -266,7 +408,7 @@ function renderHUD() {
 		elm.appendChild(document.createTextNode(" "));
 		anc = document.createElement("a");
 		anc.href = "#";
-		anc.appendChild(document.createTextNode("[move...]"));
+		anc.appendChild(document.createTextNode("[place...]"));
 		anc.addEventListener("click", function(e) {
 			e.preventDefault();
 			LIGHT.moveMode = true;
@@ -307,7 +449,6 @@ function renderHUD() {
 			inp.size = 3;
 			inp.addEventListener("change", function(e) {
 				LIGHT.shapes[idx].r = parseFloat(this.value);
-				LIGHT.shapes[idx].h = parseFloat(this.value) * 2;
 			});
 			elm.appendChild(inp);
 		} else {
@@ -325,13 +466,15 @@ function renderHUD() {
 			inp.size = 3;
 			inp.addEventListener("change", function(e) {
 				LIGHT.shapes[idx].h = parseFloat(this.value);
-				LIGHT.shapes[idx].r = parseFloat(this.value) / 2;
 			});
 			elm.appendChild(inp);
 		}
 
 		elm.appendChild(document.createElement("br"));
 
+		var sec = document.createElement("div");
+		sec.className = "section";
+		elm.appendChild(sec);
 		inp = document.createElement("input");
 		inp.type = "checkbox";
 		inp.checked = shape.strobe;
@@ -340,8 +483,8 @@ function renderHUD() {
 			LIGHT.shapes[idx].strobe = this.checked;
 			renderHUD();
 		});
-		elm.appendChild(inp);
-		elm.appendChild(document.createTextNode("strobe "));
+		sec.appendChild(inp);
+		sec.appendChild(document.createTextNode("strobe "));
 		if(shape.strobe) {
 			inp = document.createElement("input");
 			inp.type = "checkbox";
@@ -351,12 +494,12 @@ function renderHUD() {
 				LIGHT.shapes[idx].strobeRandom = this.checked;
 				renderHUD();
 			});
-			elm.appendChild(inp);
-			elm.appendChild(document.createTextNode("randomize"));
+			sec.appendChild(inp);
+			sec.appendChild(document.createTextNode("randomize"));
 
-			elm.appendChild(document.createElement("br"));
+			sec.appendChild(document.createElement("br"));
 
-			elm.appendChild(document.createTextNode(" on:"));
+			sec.appendChild(document.createTextNode(" on:"));
 			inp = document.createElement("input");
 			inp.value = shape.strobeOn || 0;
 			inp.size = 3;
@@ -364,8 +507,8 @@ function renderHUD() {
 			inp.addEventListener("change", function(e) {
 				LIGHT.shapes[idx].strobeOn = parseInt(this.value);
 			});
-			elm.appendChild(inp);
-			elm.appendChild(document.createTextNode(" off:"));
+			sec.appendChild(inp);
+			sec.appendChild(document.createTextNode(" off:"));
 			inp = document.createElement("input");
 			inp.value = shape.strobeOff || 0;
 			inp.size = 3;
@@ -373,8 +516,8 @@ function renderHUD() {
 			inp.addEventListener("change", function(e) {
 				LIGHT.shapes[idx].strobeOff = parseInt(this.value);
 			});
-			elm.appendChild(inp);
-			elm.appendChild(document.createTextNode(" offset:"));
+			sec.appendChild(inp);
+			sec.appendChild(document.createTextNode(" offset:"));
 			inp = document.createElement("input");
 			inp.value = shape.strobeOffset || 0;
 			inp.size = 3;
@@ -382,7 +525,104 @@ function renderHUD() {
 			inp.addEventListener("change", function(e) {
 				LIGHT.shapes[idx].strobeOffset = parseInt(this.value);
 			});
-			elm.appendChild(inp);
+			sec.appendChild(inp);
+		}
+
+		sec = document.createElement("div");
+		sec.className = "section";
+		elm.appendChild(sec);
+
+		inp = document.createElement("input");
+		inp.type = "checkbox";
+		inp.checked = shape.move;
+		inp.title = "move shape";
+		inp.addEventListener("change", function(e) {
+			LIGHT.shapes[idx].move = this.checked;
+			renderHUD();
+		});
+		sec.appendChild(inp);
+		sec.appendChild(document.createTextNode("move "));
+		if(shape.move) {
+			inp = document.createElement("input");
+			inp.type = "checkbox";
+			inp.checked = shape.moveTwoWay;
+			inp.title = "move there and back again";
+			inp.addEventListener("change", function(e) {
+				LIGHT.shapes[idx].moveTwoWay = this.checked;
+				renderHUD();
+			});
+			sec.appendChild(inp);
+			sec.appendChild(document.createTextNode("two-way"));
+
+			sec.appendChild(document.createElement("br"));
+
+			sec.appendChild(document.createTextNode("duration:"));
+			inp = document.createElement("input");
+			inp.value = shape.moveDuration || 0;
+			inp.size = 3;
+			inp.title = "move for this many milliseconds";
+			inp.addEventListener("change", function(e) {
+				LIGHT.shapes[idx].moveDuration = parseInt(this.value);
+			});
+			sec.appendChild(inp);
+			sec.appendChild(document.createTextNode(" offset:"));
+			inp = document.createElement("input");
+			inp.value = shape.moveOffset || 0;
+			inp.size = 3;
+			inp.title = "move for this many milliseconds";
+			inp.addEventListener("change", function(e) {
+				LIGHT.shapes[idx].moveOffset = parseInt(this.value);
+			});
+			sec.appendChild(inp);
+
+			sec.appendChild(document.createElement("br"));
+
+			sec.appendChild(document.createTextNode("x:"));
+			inp = document.createElement("input");
+			inp.value = shape.moveX || 0;
+			inp.size = 3;
+			inp.addEventListener("change", function(e) {
+				LIGHT.shapes[idx].moveX = parseFloat(this.value);
+			});
+			sec.appendChild(inp);
+			sec.appendChild(document.createTextNode(" y:"));
+			inp = document.createElement("input");
+			inp.value = shape.moveY || 0;
+			inp.size = 3;
+			inp.addEventListener("change", function(e) {
+				LIGHT.shapes[idx].moveY = parseFloat(this.value);
+			});
+			sec.appendChild(inp);
+
+			sec.appendChild(document.createTextNode(" / "));
+
+			if(shape.type === "circle") {
+				sec.appendChild(document.createTextNode("r:"));
+				inp = document.createElement("input");
+				inp.value = shape.moveR || 0;
+				inp.size = 3;
+				inp.addEventListener("change", function(e) {
+					LIGHT.shapes[idx].moveR = parseFloat(this.value);
+				});
+				sec.appendChild(inp);
+			} else {
+				sec.appendChild(document.createTextNode("w:"));
+				inp = document.createElement("input");
+				inp.value = shape.moveW || 0;
+				inp.size = 3;
+				inp.addEventListener("change", function(e) {
+					LIGHT.shapes[idx].moveW = parseFloat(this.value);
+				});
+				sec.appendChild(inp);
+				sec.appendChild(document.createTextNode(" h:"));
+				inp = document.createElement("input");
+				inp.value = shape.moveH || 0;
+				inp.size = 3;
+				inp.addEventListener("change", function(e) {
+					LIGHT.shapes[idx].moveH = parseFloat(this.value);
+				});
+				sec.appendChild(inp);
+			}
 		}
 
 		return true;
@@ -502,8 +742,11 @@ window.addEventListener("load", function() {
 	});
 	LIGHT.ambient = document.getElementById("ambient").value;
 
+	LIGHT.userPresets = JSON.parse(localStorage.getItem("userPresets") || "{}");
+
 	resize();
 	render();
+	renderHUD();
 
 	window.addEventListener("keydown", handleKey);
 
