@@ -6,8 +6,9 @@ working:
 - ambient color
 - basic additive light shape building/editing
 - any aspect ratio
+- strobe
+- basic animation
+- presets and user-defined sets
 
 todo:
-- animation
-- emitter logic
 - color fading / cycling
